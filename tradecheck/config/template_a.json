@@ -1,0 +1,59 @@
+{
+  "template_id": "A",
+  "display_name": "模板 A · 英文表头（明细逐行）",
+  "description": "英文表头布局。商业发票与装箱单各占一个工作表，产品明细逐行列出。表头行由列标题定位，明细连续排列直至合计行。装箱单允许同一型号分散在多行，检查时按（型号, 规格）汇总后比较。",
+
+  "documents": {
+    "invoice": {
+      "label": "商业发票",
+      "sheet": { "names": ["Invoice", "Commercial Invoice", "COMMERCIAL INVOICE"] },
+      "fields": {
+        "doc_no":    { "label": "Invoice No.", "offsets": [[0, 1], [0, 2]], "required": true },
+        "order_ref": { "label": "Order Ref.", "offsets": [[0, 1], [0, 2]], "required": false },
+        "currency":  { "label": "Currency",   "offsets": [[0, 1], [0, 2]], "required": true }
+      },
+      "table": {
+        "header_anchor": ["Model No.", "Quantity"],
+        "columns": {
+          "model":      ["Model No.", "Model"],
+          "spec":       ["Specification", "Spec"],
+          "unit":       ["Unit"],
+          "qty":        ["Quantity", "Qty"],
+          "unit_price": ["Unit Price"],
+          "amount":     ["Amount"]
+        },
+        "required_columns": ["model", "unit", "qty", "unit_price", "amount"],
+        "stop": { "blank_rows": 2, "total_labels": ["Total", "Grand Total", "TOTAL"] }
+      },
+      "total": { "labels": ["Total", "Grand Total", "TOTAL"], "value_from_column": "amount" }
+    },
+
+    "packing": {
+      "label": "装箱单",
+      "sheet": { "names": ["Packing List", "Packing", "PACKING LIST"] },
+      "fields": {
+        "order_ref":   { "label": "Order Ref.",   "offsets": [[0, 1], [0, 2]], "required": false },
+        "invoice_ref": { "label": "Invoice Ref.", "offsets": [[0, 1], [0, 2]], "required": false }
+      },
+      "table": {
+        "header_anchor": ["Model No.", "Quantity"],
+        "columns": {
+          "model": ["Model No.", "Model"],
+          "spec":  ["Specification", "Spec"],
+          "unit":  ["Unit"],
+          "qty":   ["Quantity", "Qty"]
+        },
+        "required_columns": ["model", "unit", "qty"],
+        "stop": { "blank_rows": 2, "total_labels": ["Total", "Grand Total", "TOTAL"] }
+      },
+      "total": { "labels": ["Total", "Grand Total", "TOTAL"], "value_from_column": "qty" }
+    }
+  },
+
+  "money": {
+    "default_currency": "USD",
+    "rounding": { "mode": "half_up", "digits": 2 },
+    "tolerance": { "absolute": "0.01" },
+    "note": "演示模板约定：单币种、两位小数、ROUND_HALF_UP、容差 0.01。这只是模板约定，不代表所有币种的通用规则。"
+  }
+}

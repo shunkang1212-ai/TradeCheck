@@ -1,0 +1,59 @@
+{
+  "template_id": "B",
+  "display_name": "模板 B · 中文表头（字段位置不同，装箱单可拆行）",
+  "description": "中文表头布局。字段位置与模板 A 不同：抬头字段的值在标签右侧一列，装箱单明细的列顺序也不同（序号/箱号/型号/规格/单位/数量）。装箱单同一型号分散在多行时按（型号, 规格）汇总后比较。",
+
+  "documents": {
+    "invoice": {
+      "label": "商业发票",
+      "sheet": { "names": ["商业发票", "发票", "Invoice"] },
+      "fields": {
+        "doc_no":    { "label": "发票号码", "offsets": [[0, 1], [0, 2]], "required": true },
+        "order_ref": { "label": "订单编号", "offsets": [[0, 1], [0, 2]], "required": false },
+        "currency":  { "label": "币种",     "offsets": [[0, 1], [0, 2]], "required": true }
+      },
+      "table": {
+        "header_anchor": ["型号", "数量"],
+        "columns": {
+          "model":      ["型号"],
+          "spec":       ["规格", "规格型号"],
+          "unit":       ["单位"],
+          "qty":        ["数量"],
+          "unit_price": ["单价"],
+          "amount":     ["金额", "金额小计"]
+        },
+        "required_columns": ["model", "unit", "qty", "unit_price", "amount"],
+        "stop": { "blank_rows": 2, "total_labels": ["合计", "总计", "合计金额"] }
+      },
+      "total": { "labels": ["合计", "总计", "合计金额"], "value_from_column": "amount" }
+    },
+
+    "packing": {
+      "label": "装箱单",
+      "sheet": { "names": ["装箱单", "Packing List", "Packing"] },
+      "fields": {
+        "order_ref":   { "label": "订单编号", "offsets": [[0, 1], [0, 2]], "required": false },
+        "invoice_ref": { "label": "发票号码", "offsets": [[0, 1], [0, 2]], "required": false }
+      },
+      "table": {
+        "header_anchor": ["型号", "数量"],
+        "columns": {
+          "model": ["型号"],
+          "spec":  ["规格", "规格型号"],
+          "unit":  ["单位"],
+          "qty":   ["数量"]
+        },
+        "required_columns": ["model", "unit", "qty"],
+        "stop": { "blank_rows": 2, "total_labels": ["合计", "总计"] }
+      },
+      "total": { "labels": ["合计", "总计"], "value_from_column": "qty" }
+    }
+  },
+
+  "money": {
+    "default_currency": "CNY",
+    "rounding": { "mode": "half_up", "digits": 2 },
+    "tolerance": { "absolute": "0.01" },
+    "note": "演示模板约定：单币种、两位小数、ROUND_HALF_UP、容差 0.01。这只是模板约定，不代表所有币种的通用规则。"
+  }
+}
