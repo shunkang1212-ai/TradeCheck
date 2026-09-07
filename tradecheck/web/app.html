@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradeCheck · 外贸单据一致性检查器</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 48px;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: #1f2328; background: #f6f8fa; line-height: 1.6;
+  }
+  header {
+    background: #1f6feb; color: #fff; padding: 14px 22px;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  header .tag { font-size: 12px; opacity: .9; }
+  main { max-width: 1080px; margin: 0 auto; padding: 20px 18px; }
+  .card {
+    background: #fff; border: 1px solid #d8dee4; border-radius: 8px;
+    padding: 16px 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid #eaeef2; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field { max-width:100%; min-width:0; }
+  select, input[type=file] { max-width:100%; }
+  .table-wrap { overflow-x:auto; margin-top:8px; }
+  .table-wrap table { min-width:660px; }
+  .table-wrap table.findings-grid { min-width:1100px; }
+  .coord { overflow-wrap:anywhere; }
+  .field label { font-size: 12px; color: #57606a; }
+  select, input[type=file], button {
+    font: inherit; padding: 7px 10px; border: 1px solid #d0d7de; border-radius: 6px;
+    background: #fff; color: #1f2328;
+  }
+  button {
+    background: #1f6feb; color: #fff; border: 1px solid #1f6feb; cursor: pointer; font-weight: 600;
+  }
+  button.secondary { background: #fff; color: #1f6feb; border-color: #1f6feb; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .muted { color: #57606a; font-size: 12px; }
+  .err { background: #fef1f0; border: 1px solid #d1242f; color: #a40e26; padding: 10px 12px; border-radius: 6px; font-size: 13px; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  table.grid th, table.grid td { border: 1px solid #d8dee4; padding: 5px 7px; vertical-align: top; text-align: left; }
+  table.grid thead th { background: #f6f8fa; font-weight: 600; white-space: nowrap; }
+  table.grid tbody tr:nth-child(even) { background: #fbfcfd; }
+  input.cell {
+    width: 100%; min-width: 64px; border: 1px solid #d0d7de; border-radius: 4px; padding: 3px 5px;
+    font: inherit; font-size: 12px;
+  }
+  input.cell.changed { background: #fff8e1; border-color: #d4a72c; }
+  .coord { color: #57606a; font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; border: 1px solid; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .b-diff { color: #b3261e; border-color: #b3261e; background: #fdecea; }
+  .b-todo { color: #8a5300; border-color: #8a5300; background: #fef3e2; }
+  .b-skip { color: #455a64; border-color: #78909c; background: #eceff1; }
+  .b-ok   { color: #1b5e20; border-color: #1b5e20; background: #e8f5e9; }
+  .kv td:first-child { width: 170px; color: #57606a; background: #f6f8fa; white-space: nowrap; }
+  .doc-block { border: 1px solid #eaeef2; border-radius: 6px; padding: 12px 14px; margin-top: 10px; }
+  .doc-block h3 { font-size: 14px; margin: 0 0 8px; }
+  .callout { border: 1px solid #d8dee4; background: #f6f8fa; padding: 9px 12px; border-radius: 6px; font-size: 13px; margin-top: 10px; }
+  .callout.warn { border-color: #8a5300; background: #fef3e2; color: #6b4200; }
+  .overall { border: 1px solid #d8dee4; border-left: 4px solid #1f6feb; background: #f6f8fa; padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; }
+  .overall .head { font-size: 15px; font-weight: 600; }
+  .stats span { display: inline-block; margin-right: 16px; font-size: 13px; font-weight: 600; }
+  .hint { font-size: 12px; color: #57606a; margin: 6px 0 0; }
+  #reportFrame { width: 100%; height: 70vh; border: 1px solid #d8dee4; border-radius: 6px; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -1px; margin-right: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>TradeCheck</h1>
+  <span class="tag">外贸单据一致性检查器 · 本地运行 · v0.1.1 复核版</span>
+  <span class="tag" id="hostTag"></span>
+</header>
+
+<main>
+  <div id="errorBox"></div>
+
+  <!-- 1. 选择模板 + 上传 -->
+  <section class="card">
+    <h2>① 选择模板并上传两份文件</h2>
+    <div class="row">
+      <div class="field">
+        <label for="template">单据模板</label>
+        <select id="template"></select>
+      </div>
+      <div class="field">
+        <label for="invoiceFile">商业发票 Commercial Invoice（.xlsx）</label>
+        <input type="file" id="invoiceFile" accept=".xlsx">
+      </div>
+      <div class="field">
+        <label for="packingFile">装箱单 Packing List（.xlsx）</label>
+        <input type="file" id="packingFile" accept=".xlsx">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button id="extractBtn">提取预览</button>
+      </div>
+    </div>
+    <p class="hint">文件仅传给本机程序解析，不会发送到外部服务。单份文件上限 20 MB，原文件保持不变。模板 A 为英文表头，模板 B 为中文表头。</p>
+  </section>
+
+  <!-- 2. 预览 + 修正 -->
+  <section class="card" id="previewCard" style="display:none">
+    <h2>② 预览关键字段与明细（如需修正，直接在单元格里改）</h2>
+    <div id="previewArea"></div>
+    <p class="hint">修改后点击「核对」才生效；这些修正仅用于本次会话，不会改变源文件。所有改动都会原样记入最终报告。</p>
+    <p><label><input type="checkbox" id="batchConfirmed"> 我已确认这两份文件属于同一批出货</label></p>
+    <div class="row" style="margin-top:12px">
+      <button id="checkBtn">核对一致性</button>
+      <button id="reportBtn" class="secondary">生成并保存报告</button>
+    </div>
+  </section>
+
+  <!-- 3. 核对结果 -->
+  <section class="card" id="resultCard" style="display:none">
+    <h2>③ 核对结果</h2>
+    <div id="resultArea"></div>
+  </section>
+
+  <!-- 4. 报告 -->
+  <section class="card" id="reportCard" style="display:none">
+    <h2>④ 检查报告</h2>
+    <div id="reportArea"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const errorBox = $("errorBox");
+let sessionId = null;
+let busy = false;
+let reportUrl = null;
+const originalValues = new Map();
+const FIELD_LABELS = {doc_no:"发票号", order_ref:"订单引用号", currency:"币种", invoice_ref:"发票引用号", model:"型号", spec:"规格", unit:"单位", qty:"数量", unit_price:"单价", amount:"行金额"};
+
+function invalidateResults() {
+  $("resultCard").style.display = "none";
+  $("reportCard").style.display = "none";
+  $("resultArea").innerHTML = "";
+  $("reportArea").innerHTML = "";
+  if (reportUrl) { URL.revokeObjectURL(reportUrl); reportUrl = null; }
+}
+function resetPreview() {
+  sessionId = null;
+  corrections.clear(); originalValues.clear();
+  $("batchConfirmed").checked = false;
+  $("previewCard").style.display = "none";
+  $("previewArea").innerHTML = "";
+  invalidateResults();
+}
+
+function showError(msg) {
+  errorBox.innerHTML = '<div class="err">⚠️ ' + escapeHtml(msg) + '</div>';
+}
+function clearError() { errorBox.innerHTML = ""; }
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
+function setBusy(btn, value, label) {
+  if (!btn) return;
+  busy = value;
+  document.querySelectorAll("input, select, button").forEach((el) => el.disabled = value);
+  if (!value) {
+    $("checkBtn").disabled = !sessionId || !$("batchConfirmed").checked;
+    $("reportBtn").disabled = !sessionId || !$("batchConfirmed").checked;
+  }
+  btn.dataset.label = btn.dataset.label || btn.textContent;
+  btn.innerHTML = value ? '<span class="spinner"></span>' + (label || "处理中…") : btn.dataset.label;
+}
+
+// ---- 模板下拉 ----
+async function loadTemplates() {
+  try {
+    const tpls = await apiGetTemplates();
+    const sel = $("template");
+    sel.innerHTML = "";
+    (tpls || []).forEach((t) => {
+      const o = document.createElement("option");
+      o.value = t.template_id;
+      o.textContent = t.display_name + (t.description ? " — " + t.description : "");
+      sel.appendChild(o);
+    });
+  } catch (e) { /* 允许后续手动填 A/B */ }
+}
+
+function apiGetTemplates() {
+  // 直接用内置列表，避免多一次请求；与后端 config 保持一致
+  return Promise.resolve([
+    { template_id: "A", display_name: "模板 A · 英文表头（明细逐行）", description: "英文表头，产品逐行列出" },
+    { template_id: "B", display_name: "模板 B · 中文表头（装箱单可拆行）", description: "中文表头，装箱单同一型号可分散在多行" },
+  ]);
+}
+
+// ---- 工具：读取文件为 base64 ----
+function fileToB64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const buf = new Uint8Array(r.result);
+      let bin = "";
+      for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+      resolve(btoa(bin));
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsArrayBuffer(file);
+  });
+}
+
+async function postJson(url, obj) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(obj),
+  });
+  let data = null;
+  try { data = await resp.json(); } catch (e) { data = {}; }
+  if (!resp.ok) throw new Error(data.error || ("请求失败：" + resp.status));
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// ---- 修正收集 ----
+const corrections = new Map(); // target -> new_text
+function recordCorrection(target, newText) {
+  const text = String(newText == null ? "" : newText);
+  if (text === originalValues.get(target)) corrections.delete(target);
+  else corrections.set(target, text);
+}
+function correctionsArray() {
+  const arr = [];
+  corrections.forEach((v, k) => arr.push({ target: k, new_text: v }));
+  return arr;
+}
+
+// ---- 提取预览 ----
+$("extractBtn").addEventListener("click", async () => {
+  clearError();
+  const invFile = $("invoiceFile").files[0];
+  const pacFile = $("packingFile").files[0];
+  resetPreview();
+  if (!invFile || !pacFile) { showError("请先选择商业发票和装箱单两个文件。"); return; }
+  if ([invFile, pacFile].some(f => !f.name.toLowerCase().endsWith('.xlsx') || f.size > 20 * 1024 * 1024)) {
+    showError("请使用不超过 20 MB 的 .xlsx 文件。"); return;
+  }
+  const btn = $("extractBtn");
+  setBusy(btn, true, "提取中…");
+  try {
+    const [invB64, pacB64] = await Promise.all([fileToB64(invFile), fileToB64(pacFile)]);
+    const data = await postJson("/api/extract", {
+      template: $("template").value,
+      invoice_b64: invB64, invoice_name: invFile.name,
+      packing_b64: pacB64, packing_name: pacFile.name,
+    });
+    corrections.clear();
+    sessionId = data.session_id;
+    renderPreview(data);
+    $("previewCard").style.display = "";
+    $("resultCard").style.display = "none";
+    $("reportCard").style.display = "none";
+  } catch (e) { showError(e.message); }
+  finally { setBusy(btn, false); }
+});
+
+function cellInput(role, target, text, coord) {
+  const id = "c_" + target.replace(/[^a-zA-Z0-9]/g, "_");
+  const changed = corrections.has(target);
+  originalValues.set(target, String(text == null ? "" : text));
+  const fieldName = target.split('.').pop();
+  const label = (role === 'invoice' ? '商业发票' : '装箱单') + ' ' + (FIELD_LABELS[fieldName] || '总额') + ' ' + (coord || '无来源单元格');
+  return `
+    <input class="cell ${changed ? "changed" : ""}" id="${id}" data-target="${escapeHtml(target)}"
+      aria-label="${escapeHtml(label)}" value="${escapeHtml(text || "")}" title="来源：${escapeHtml(coord || "")}">
+    ${coord ? '<div class="coord">' + escapeHtml(coord) + "</div>" : ""}`;
+}
+
+function renderDoc(doc) {
+  let html = `<div class="doc-block">
+    <h3>${escapeHtml(doc.role_label)} — ${escapeHtml(doc.file_name)}</h3>
+    <div class="muted">工作表：<b>${escapeHtml(doc.sheet)}</b> · 明细表识别：${doc.table_found ? "成功" : "<b style='color:#b3261e'>未识别</b>"} · SHA-256：<span class="coord">${escapeHtml((doc.sha256 || "").slice(0, 16))}…</span></div>`;
+
+  // 关键表头字段（可编辑）
+  const headKeys = Object.keys(doc.header || {});
+  if (headKeys.length) {
+    html += '<table class="grid kv"><tbody>';
+    headKeys.forEach((k) => {
+      const f = doc.header[k];
+      const target = `${doc.role}:header.${k}`;
+      html += `<tr><td>${escapeHtml(FIELD_LABELS[k] || k)}</td><td>${cellInput(doc.role, target, f.text, f.coord)}</td></tr>`;
+    });
+    html += "</tbody></table>";
+  }
+
+  // 明细行（可编辑）
+  if (doc.rows && doc.rows.length) {
+    const fieldOrder = ["model", "spec", "unit", "qty", "unit_price", "amount"];
+    const present = new Set();
+    doc.rows.forEach((r) => Object.keys(r.fields).forEach((k) => present.add(k)));
+    const cols = fieldOrder.filter((c) => present.has(c)).concat([...present].filter((c) => !fieldOrder.includes(c)));
+    html += '<table class="grid"><thead><tr><th>#</th>' +
+      cols.map((c) => `<th>${escapeHtml(FIELD_LABELS[c] || c)}</th>`).join("") + "</tr></thead><tbody>";
+    doc.rows.forEach((r) => {
+      html += `<tr><td class="coord">${r.row_index}</td>`;
+      cols.forEach((c) => {
+        const f = r.fields[c] || {};
+        const target = `${doc.role}:row.${r.row_index}.${c}`;
+        html += "<td>" + cellInput(doc.role, target, f.text, f.coord) + "</td>";
+      });
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+  }
+
+  // 总额
+  if (doc.role === 'invoice' && doc.total && doc.total.coord) {
+    const target = `${doc.role}:total`;
+    html += `<p class="muted" style="margin-top:8px">原提取总额 <b>${escapeHtml(doc.total.text || "—")}</b>
+      @ <span class="coord">${escapeHtml(doc.total.coord)}</span>
+      <span style="margin-left:8px">修正：</span>${cellInput(doc.role, target, doc.total.text, doc.total.coord)}</p>`;
+  }
+
+  // 提取阶段问题
+  if (doc.issues && doc.issues.length) {
+    html += '<div class="callout warn"><b>提取提示：</b><ul style="margin:6px 0 0;padding-left:18px">';
+    doc.issues.forEach((i) => {
+      html += `<li>[${escapeHtml(i.severity)}] ${escapeHtml(i.message)}</li>`;
+    });
+    html += "</ul></div>";
+  }
+  html += "</div>";
+  return html;
+}
+
+function renderPreview(data) {
+  let html = `
+    <div class="callout">模板：<b>${escapeHtml(data.template_id)}</b> ·
+      提取完成后，如发现自动识别有误，可直接在下方单元格内修改；修改仅作用于本次会话。</div>
+    ${renderDoc(data.invoice)}
+    ${renderDoc(data.packing)}
+    <p class="hint">已修改的单元格会高亮。点击「核对一致性」应用这些修正并生成结论；点击「生成并保存报告」直接出最终 HTML 报告。</p>`;
+  $("previewArea").innerHTML = html;
+  wrapTables($("previewArea"));
+  bindCellInputs();
+}
+
+function bindCellInputs() {
+  document.querySelectorAll("input.cell").forEach((el) => {
+    el.addEventListener("input", () => {
+      const target = el.dataset.target;
+      recordCorrection(target, el.value);
+      el.classList.toggle("changed", corrections.has(target));
+      invalidateResults();
+    });
+  });
+}
+
+// ---- 核对 ----
+$("checkBtn").addEventListener("click", async () => {
+  clearError();
+  if (!sessionId || !$("batchConfirmed").checked || busy) return;
+  invalidateResults();
+  const btn = $("checkBtn");
+  setBusy(btn, true, "核对中…");
+  try {
+    const data = await postJson("/api/check", { session_id: sessionId, corrections: correctionsArray() });
+    renderResult(data);
+    $("resultCard").style.display = "";
+    $("reportCard").style.display = "none";
+  } catch (e) { showError(e.message); }
+  finally { setBusy(btn, false); }
+});
+
+function statusBadge(s) {
+  const map = { "发现差异": "b-diff", "待确认": "b-todo", "未检查": "b-skip", "未发现差异": "b-ok" };
+  const cls = map[s] || "b-skip";
+  return `<span class="badge ${cls}">${escapeHtml(s)}</span>`;
+}
+
+function renderResult(data) {
+  const sum = data.summary || {};
+  const s = (k) => sum[k] || 0;
+  let html = `
+    <div class="overall">
+      <div class="head">${escapeHtml(data.overall || "（无结论）")}</div>
+      <div class="stats" style="margin-top:6px">
+        <span style="color:#b3261e">发现差异 ${s("发现差异")}</span>
+        <span style="color:#8a5300">待确认 ${s("待确认")}</span>
+        <span style="color:#455a64">未检查 ${s("未检查")}</span>
+        <span style="color:#1b5e20">未发现差异 ${s("未发现差异")}</span>
+      </div>
+      ${data.overall_note ? `<div class="muted" style="margin-top:6px">${escapeHtml(data.overall_note)}</div>` : ""}
+    </div>`;
+
+  if (data.findings && data.findings.length) {
+    html += `<table class="grid findings-grid"><thead><tr>
+      <th>规则</th><th>检查项目</th><th>状态</th><th>期望值</th><th>实际值</th>
+      <th>计算/依据</th><th>差异说明</th><th>位置</th></tr></thead><tbody>`;
+    data.findings.forEach((f) => {
+      html += `<tr>
+        <td class="coord">${escapeHtml(f.rule_id || "")}</td>
+        <td>${escapeHtml(f.item || "")}</td>
+        <td>${statusBadge(f.status)}</td>
+        <td>${escapeHtml(f.expected || "")}</td>
+        <td>${escapeHtml(f.actual || "")}</td>
+        <td class="evidence">${escapeHtml(f.evidence || "")}</td>
+        <td>${escapeHtml(f.detail || "")}</td>
+        <td class="coord">${escapeHtml((f.sources || []).map((x) => (x.file_name || '') + ' · ' + (x.sheet ? x.sheet + "!" + x.coord : x.coord)).join("、") || "")}</td>
+      </tr>`;
+    });
+    html += "</tbody></table>";
+  }
+
+  if (data.coverage && data.coverage.length) {
+    html += `<div class="callout"><b>本次实际检查范围：</b><br>${data.coverage.map(escapeHtml).join("<br>")}</div>`;
+  }
+  if (data.unchecked && data.unchecked.length) {
+    html += `<div class="callout warn"><b>未检查项（需人工复核）：</b><br>${data.unchecked.map(escapeHtml).join("<br>")}</div>`;
+  }
+  const cur = data.currency || {};
+  if (cur.currency_message) {
+    html += `<div class="callout">币种识别：${escapeHtml(cur.currency_message)}</div>`;
+  }
+  if (data.corrections && data.corrections.length) {
+    html += `<div class="callout"><b>已应用修正（${data.corrections.length} 处）：</b><ul style="margin:6px 0 0;padding-left:18px">`;
+    data.corrections.forEach((c) => {
+      html += `<li>${escapeHtml(c.target)}：${escapeHtml(c.old_text)} → <b>${escapeHtml(c.new_text)}</b> <span class="coord">@ ${escapeHtml(c.source || "")}</span></li>`;
+    });
+    html += "</ul></div>";
+  }
+  $("resultArea").innerHTML = html;
+  wrapTables($("resultArea"));
+}
+
+// ---- 生成报告 ----
+$("reportBtn").addEventListener("click", async () => {
+  clearError();
+  if (!sessionId || !$("batchConfirmed").checked || busy) return;
+  invalidateResults();
+  const btn = $("reportBtn");
+  setBusy(btn, true, "生成中…");
+  try {
+    const data = await postJson("/api/report", { session_id: sessionId, corrections: correctionsArray() });
+    renderResult(data.result);
+    $("resultCard").style.display = "";
+    renderReport(data);
+    $("reportCard").style.display = "";
+  } catch (e) { showError(e.message); }
+  finally { setBusy(btn, false); }
+});
+
+function renderReport(data) {
+  let html = `<div class="callout">报告已保存至：<br><span class="coord">${escapeHtml(data.path)}</span></div>`;
+  reportUrl = URL.createObjectURL(new Blob([data.html], {type:'text/html;charset=utf-8'}));
+  html += `<p style="margin:10px 0"><a id="openReport" href="${reportUrl}" target="_blank" rel="noopener">在新标签页查看报告</a> · <a href="${reportUrl}" download="TradeCheck_报告.html">下载 HTML 报告</a> · <button class="secondary" id="copyPath">复制保存路径</button> <span id="copyStatus" role="status"></span></p>`;
+  html += `<iframe id="reportFrame" title="检查报告预览"></iframe>`;
+  $("reportArea").innerHTML = html;
+  $("reportFrame").srcdoc = data.html;
+  $("copyPath").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(data.path); $("copyStatus").textContent = '已复制'; }
+    catch (e) { $("copyStatus").textContent = '复制失败，请手动选择上方路径'; }
+  });
+}
+
+function wrapTables(area) {
+  area.querySelectorAll('table.grid').forEach(table => {
+    const wrapper = document.createElement('div'); wrapper.className = 'table-wrap';
+    table.before(wrapper); wrapper.appendChild(table);
+  });
+}
+['template', 'invoiceFile', 'packingFile'].forEach(id => $(id).addEventListener('change', () => {
+  resetPreview(); clearError();
+}));
+$("batchConfirmed").addEventListener('change', () => {
+  invalidateResults();
+  $("checkBtn").disabled = !sessionId || !$("batchConfirmed").checked;
+  $("reportBtn").disabled = !sessionId || !$("batchConfirmed").checked;
+});
+
+// 初始化
+$("hostTag").textContent = "仅本机 127.0.0.1 可访问";
+loadTemplates();
+</script>
+</body>
+</html>
