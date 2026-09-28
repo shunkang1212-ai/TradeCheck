@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from .models import STATUS_OK
+from .models import STATUS_DIFF, STATUS_SKIP, STATUS_TODO
 from .pipeline import PipelineError, check_pair, extract_pair
 from .templates import TemplateError, load_template
 from .version import TOOL_NAME, VERSION
@@ -124,7 +124,10 @@ def run_batch(manifest_path: str) -> Tuple[Dict[str, Any], int, Set[Path]]:
             )
             result, extra = check_pair(invoice, packing, template)
             overall = result.overall
-            if overall == STATUS_OK:
+            needs_review = any(
+                result.count(status) for status in (STATUS_DIFF, STATUS_TODO, STATUS_SKIP)
+            ) or bool(result.unchecked)
+            if not needs_review:
                 passed += 1
             else:
                 review_required += 1
