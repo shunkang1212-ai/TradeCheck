@@ -1,0 +1,16 @@
+{
+  "template": "A",
+  "pairs": [
+    {
+      "id": "template-a-normal",
+      "invoice": "A/normal_invoice.xlsx",
+      "packing": "A/normal_packing.xlsx"
+    },
+    {
+      "id": "template-b-normal",
+      "template": "B",
+      "invoice": "B/normal_invoice.xlsx",
+      "packing": "B/normal_packing.xlsx"
+    }
+  ]
+}
