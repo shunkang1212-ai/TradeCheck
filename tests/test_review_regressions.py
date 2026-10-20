@@ -182,7 +182,9 @@ class SessionRegression(unittest.TestCase):
         first = server.do_report(payload)
         second = server.do_report(payload)
         self.assertNotEqual(first["path"], second["path"])
-        self.assertEqual(Path(first["path"]).read_text(), first["html"])
+        # The generated report is UTF-8; pass the encoding explicitly so this
+        # test also works on Windows installations whose locale defaults to GBK.
+        self.assertEqual(Path(first["path"]).read_text(encoding="utf-8"), first["html"])
 
     def test_report_records_correction_and_original_source(self):
         data = server.do_extract(self.payload)
