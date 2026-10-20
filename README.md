@@ -4,8 +4,7 @@ TradeCheck 是一个本地优先的外贸单据一致性检查器。它读取商
 `.xlsx` 文件，检查引用关系、型号/规格、数量、行金额和总额，并生成可留档的
 单文件 HTML 报告。
 
-项目当前为 **v0.1.2 alpha**。它适合测试和辅助复核，不能替代人工确认、财务审核、
-报关判断或合同履行判断。
+项目当前为 **v0.1.3 alpha**。它适合测试和辅助复核，不能替代人工确认、财务审核、报关判断或合同履行判断。
 
 ## 为什么做这个项目
 
@@ -31,12 +30,19 @@ python -m pip install -e .
 tradecheck
 ```
 
-Windows PowerShell 激活虚拟环境时使用：
+Windows PowerShell 中，在仓库目录创建并激活虚拟环境。优先使用 Python Launcher：
 
 ```powershell
+py -3 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -e .
 tradecheck
+```
+
+如果系统没有 `py` 命令，但已安装 Python 并配置了 `python` 命令，将第一行改为：
+
+```powershell
+python -m venv .venv
 ```
 
 浏览器打开终端显示的 `http://127.0.0.1:端口/`。也可以指定端口：
@@ -49,7 +55,7 @@ tradecheck --port 9000
 
 ### 批量核对并输出 JSON
 
-批量命令已包含在 v0.1.2 alpha 中。
+批量命令已包含在 v0.1.2 alpha 及后续版本中。
 
 批量模式读取 JSON 清单，每个条目显式配对一份商业发票和一份装箱单。相对文件路径按清单
 所在目录解析；每组可以单独指定模板，省略时使用清单中的默认模板（默认 A）。仓库自带
@@ -104,10 +110,11 @@ tradecheck batch --manifest batch.json --output results.json
 python -m unittest discover -s tests
 ```
 
-v0.1.2 在 Python 3.9.6 上通过 108 个自动化测试，虚构批量清单的两组样例均完成且退出码为
-0。GitHub Actions 会在 Python 3.9、3.12 和 3.13 上运行测试；跨版本结果以公开 CI 记录为准。
-浏览器完整流程验证对应 v0.1.1；v0.1.2 的批量命令只用仓库虚构样例验证，尚未用真实业务
-单据验证。
+v0.1.3 在 Python 3.9.6 上通过 108 个自动化测试，虚构批量清单的两组样例均完成且
+退出码为 0。GitHub Actions 会在 Python 3.9、3.12 和 3.13 上运行测试；跨版本结果以公开 CI
+记录为准。浏览器完整流程验证对应 v0.1.1；批量命令使用仓库虚构样例验证，尚未用真实业务
+单据验证。v0.1.3 修复了 Windows 中文默认编码导致的一项回归测试失败，但尚未在原生 Windows
+上重新运行完整测试。
 
 ## 当前限制
 

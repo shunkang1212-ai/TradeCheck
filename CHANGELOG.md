@@ -1,5 +1,12 @@
 # 更新记录
 
+## 0.1.3 - 2026-10-20
+
+- 修正 Windows 中文默认编码环境下的 UTF-8 HTML 报告回归测试。
+- 补充 Windows PowerShell 安装步骤；未安装 Python Launcher 时可用 `python -m venv .venv`。
+- 本地验证：Python 3.9.6 下 108 个测试通过；虚构批量清单 2/2 通过。
+- 尚未在原生 Windows 上完成测试，也未用真实业务单据验证。
+
 ## 0.1.2 - 2026-09-28
 
 - 增加 `tradecheck batch`，按 JSON 清单批量核对多组发票与装箱单并生成机器可读 JSON。
